@@ -1,9 +1,9 @@
-// src/app/layout.js
 'use client';
 
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { ConfigProvider, theme, Layout } from 'antd';
 import { usePathname } from 'next/navigation';
+import { useState } from 'react';
 import AppSidebar from './components/layout/AppSidebar';
 import AppHeader from './components/layout/AppHeader';
 import './globals.css';
@@ -13,6 +13,9 @@ const queryClient = new QueryClient();
 export default function RootLayout({ children }) {
   const pathname = usePathname();
   const isLoginPage = pathname === '/';
+  
+  // State buat buka/tutup menu di HP
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   return (
     <html lang="en">
@@ -22,7 +25,7 @@ export default function RootLayout({ children }) {
             theme={{
               algorithm: theme.darkAlgorithm,
               token: {
-                colorPrimary: '#8b5cf6', // Ungu modern ala SaaS
+                colorPrimary: '#8b5cf6',
                 colorBgBase: '#000000',
                 colorBgContainer: '#121212',
                 colorBgElevated: '#1e1e1e',
@@ -43,16 +46,20 @@ export default function RootLayout({ children }) {
               children
             ) : (
               <Layout style={{ minHeight: '100vh', background: '#000' }}>
-                <AppSidebar />
+                <AppSidebar mobileMenuOpen={mobileMenuOpen} setMobileMenuOpen={setMobileMenuOpen} />
                 <Layout style={{ background: '#0a0a0a' }}>
-                  <AppHeader />
+                  <AppHeader setMobileMenuOpen={setMobileMenuOpen} />
+                  
+                  {/* Paddingnya dibikin responsif pake clamp (kecil di HP, gede di Laptop) */}
                   <Layout.Content style={{ 
-                    padding: '32px', 
+                    padding: 'clamp(16px, 3vw, 32px)', 
                     margin: 0, 
                     overflowY: 'auto',
                     height: 'calc(100vh - 64px)'
                   }}>
-                    {children}
+                    <div style={{ maxWidth: 1200, margin: '0 auto', paddingBottom: 40 }}>
+                      {children}
+                    </div>
                   </Layout.Content>
                 </Layout>
               </Layout>
