@@ -1,31 +1,33 @@
 import { NextResponse } from 'next/server';
-import { dbConnect, Note } from '../.././lib/mongodb';
+import { dbConnect, Note } from '../../lib/mongodb';
 
 export async function GET(req) {
-  try {
-    await dbConnect();
-    // Idealnya userId diambil dari token JWT di Headers, ini kita mock ambil dari query params buat contoh
-    const { searchParams } = new URL(req.url);
-    const userId = searchParams.get('userId'); 
-
-    if (!userId) return NextResponse.json({ success: false, message: 'Unauthorized' }, { status: 401 });
-
-    const notes = await Note.find({ userId }).sort({ createdAt: -1 });
-    return NextResponse.json({ success: true, data: notes });
-  } catch (error) {
-    return NextResponse.json({ success: false, message: error.message }, { status: 500 });
-  }
+  await dbConnect();
+  const { searchParams } = new URL(req.url);
+  const userId = searchParams.get('userId');
+  const notes = await Note.find({ userId, isDeleted: { $ne: true } }).sort({ createdAt: -1 });
+  return NextResponse.json({ success: true, data: notes });
 }
 
 export async function POST(req) {
-  try {
-    await dbConnect();
-    const body = await req.json();
-    const { userId, title, content, tags } = body;
+  await dbConnect();
+  const data = await req.json();
+  const note = await Note.create(data);
+  return NextResponse.json({ success: true, data: note });
+}
 
-    const newNote = await Note.create({ userId, title, content, tags });
-    return NextResponse.json({ success: true, data: newNote }, { status: 201 });
-  } catch (error) {
-    return NextResponse.json({ success: false, message: error.message }, { status: 500 });
-  }
+export async function PUT(req) {
+  await dbConnect();
+  const data = await req.json();
+  const { id, ...updateData } = data;
+  const note = await Note.findByIdAndUpdate(id, updateData, { new: true });
+  return NextResponse.json({ success: true, data: note });
+}
+
+export async function DELETE(req) {
+  await dbConnect();
+  const { searchParams } = new URL(req.url);
+  const id = searchParams.get('id');
+  await Note.findByIdAndUpdate(id, { isDeleted: true });
+  return NextResponse.json({ success: true });
 }

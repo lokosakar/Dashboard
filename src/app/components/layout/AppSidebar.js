@@ -1,51 +1,73 @@
+// src/app/components/layout/AppSidebar.js
 'use client';
 
-import { useEffect, useRef } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
-import { Menu } from 'antd';
-// Gw tambahin import InboxOutlined & ShoppingCartOutlined di sini
+import { Layout, Menu } from 'antd';
 import { DashboardOutlined, BookOutlined, RobotOutlined, InboxOutlined, ShoppingCartOutlined } from '@ant-design/icons';
-import gsap from 'gsap';
+
+const { Sider } = Layout;
 
 export default function AppSidebar() {
-  const sidebarRef = useRef(null);
   const pathname = usePathname();
   const router = useRouter();
 
-  useEffect(() => {
-    gsap.fromTo(
-      sidebarRef.current,
-      { x: -250, opacity: 0 },
-      { x: 0, opacity: 1, duration: 0.8, ease: "power3.out" }
-    );
-  }, []);
-
   const menuItems = [
-    { key: '/dashboard', icon: <DashboardOutlined />, label: 'Dashboard' },
-    { key: '/notes', icon: <BookOutlined />, label: 'My Notes' },
-    { key: '/chat', icon: <RobotOutlined />, label: 'AI Assistant' },
+    { key: '/dashboard', icon: <DashboardOutlined style={{ fontSize: '18px' }} />, label: 'Command Center' },
+    { type: 'divider', style: { borderColor: '#222', margin: '16px 24px' } }, // Garis pemisah
     
-    // --- INI MENU FINANCE YANG LU TUNGGU-TUNGGU ---
-    { key: '/finance/products', icon: <InboxOutlined />, label: '📦 Inventory' },
-    { key: '/finance/orders', icon: <ShoppingCartOutlined />, label: '🛒 Sales & Orders' },
+    // Core Engine
+    { key: 'grp1', type: 'group', label: <span style={{ color: '#555', fontSize: '11px', letterSpacing: '1px' }}>CORE ENGINE</span>, children: [
+      { key: '/notes', icon: <BookOutlined style={{ fontSize: '18px' }} />, label: 'Second Brain' },
+      { key: '/chat', icon: <RobotOutlined style={{ fontSize: '18px' }} />, label: 'AI Assistant' },
+    ]},
+
+    { type: 'divider', style: { borderColor: '#222', margin: '16px 24px' } },
+
+    // Finance ERP
+    { key: 'grp2', type: 'group', label: <span style={{ color: '#6d28d9', fontSize: '11px', letterSpacing: '1px', textShadow: '0 0 10px rgba(139,92,246,0.5)' }}>FINANCE ERP</span>, children: [
+      { key: '/finance/products', icon: <InboxOutlined style={{ fontSize: '18px' }} />, label: 'Inventory' },
+      { key: '/finance/orders', icon: <ShoppingCartOutlined style={{ fontSize: '18px' }} />, label: 'Sales & Orders' },
+    ]},
   ];
 
   return (
-    <aside 
-      ref={sidebarRef} 
-      style={{ width: 250, background: '#1a1a1a', height: '100vh', borderRight: '1px solid #333' }}
+    <Sider 
+      width={280} 
+      style={{ 
+        background: '#050505', 
+        borderRight: '1px solid rgba(255,255,255,0.05)',
+        boxShadow: '4px 0 24px rgba(0,0,0,0.5)'
+      }}
     >
-      <div style={{ padding: '24px', textAlign: 'center', borderBottom: '1px solid #333' }}>
-        <h2 style={{ color: '#722ed1', margin: 0 }}>🧠 Brain.AI</h2>
+      {/* BAGIAN LOGO PREMIUM */}
+      <div style={{ padding: '32px 24px', display: 'flex', alignItems: 'center', gap: '16px' }}>
+        <div style={{ 
+          width: 36, 
+          height: 36, 
+          background: 'linear-gradient(135deg, #8b5cf6, #ec4899)', 
+          borderRadius: 10,
+          boxShadow: '0 0 20px rgba(139, 92, 246, 0.4)'
+        }}></div>
+        <div>
+          <h2 style={{ margin: 0, fontSize: '22px', fontWeight: 900, color: '#fff', letterSpacing: '-0.5px' }}>
+            LIONEL DASHBOARD
+          </h2>
+          <span style={{ color: '#8b5cf6', fontSize: '10px', fontFamily: 'monospace', letterSpacing: '2px' }}>SYSTEM.V2</span>
+        </div>
       </div>
+
+      {/* MENU ANT DESIGN (Custom Style) */}
       <Menu
-        theme="dark"
         mode="inline"
         selectedKeys={[pathname]}
         onClick={({ key }) => router.push(key)}
         items={menuItems}
-        style={{ background: 'transparent', marginTop: '16px', borderRight: 'none' }}
+        style={{ 
+          background: 'transparent', 
+          borderRight: 'none',
+          padding: '0 12px'
+        }}
       />
-    </aside>
+    </Sider>
   );
 }

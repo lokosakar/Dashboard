@@ -1,58 +1,49 @@
 import { NextResponse } from 'next/server';
-import { dbConnect, Note } from '../../lib/mongodb';
-import { GoogleGenerativeAI } from "@google/generative-ai";
-
-// Inisialisasi Gemini
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-
-const AI_PROMPTS = {
-  smart: "Kamu adalah asisten pintar. Jawablah secara natural, ramah, dan solutif bergaya tech-savvy.",
-  analyst: "Kamu adalah data analyst yang tajam. Fokus temukan pola, insight logis, dan ringkasan terstruktur.",
-  writer: "Kamu adalah copywriter profesional. Bantu user menulis dengan gaya bahasa yang futuristik dan keren."
-};
+import { GoogleGenerativeAI } from '@google/generative-ai';
+import { dbConnect, Product, Note } from '../../lib/mongodb';
 
 export async function POST(req) {
   try {
+    const { prompt, userId } = await req.json();
     await dbConnect();
-    const body = await req.json();
-    const { userId, message, aiType } = body; 
+    
+    // Tarik data buat konteks
+    const products = await Product.find({ userId, isDeleted: { $ne: true } });
+    const notes = await Note.find({ userId, isDeleted: { $ne: true } });
+    const inventorySummary = products.map(p => `${p.name} (Stok: ${p.stock})`).join(', ');
 
-    if (!message || !userId) {
-      return NextResponse.json({ success: false, message: 'Message dan User ID wajib ada' }, { status: 400 });
-    }
+    const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 
-    // 1. Ambil catatan asli user dari database MongoDB
-    const userNotes = await Note.find({ userId });
-    const notesContext = userNotes.map(n => `[Judul: ${n.title}] - ${n.content}`).join("\n\n");
-
-    // 2. Setup Model & Prompt
-    // GANTI PAKE KATA '-latest' DI BELAKANGNYA:
-    const model = genAI.getGenerativeModel({ model: "gemini-2,5-flash-preview" });
-    const systemPrompt = AI_PROMPTS[aiType] || AI_PROMPTS.smart;
-
-    const fullPrompt = `
-      ${systemPrompt}
+    // KUNCINYA DI SINI: Instruksi dibikin lebih "Open Minded"
+    const systemInstruction = `
+      Lu adalah 'LIONEL AI', asisten pribadi Boss Lionel yang serba tahu, santai, tapi profesional.
       
-      Berikut adalah catatan "Second Brain" milik user untuk referensi kamu:
-      ${notesContext || "User belum memiliki catatan."}
-      
-      Pertanyaan User: ${message}
-      
-      Gunakan catatan di atas hanya jika relevan untuk menjawab. Jawablah langsung ke inti masalah.
+      TUGAS LU:
+      1. Jawab apapun pertanyaan Boss (hewan, koding, masak, apa aja) secara akurat.
+      2. Lu punya akses ke data bisnis Boss:
+         - Produk: ${inventorySummary || 'Gudang kosong'}
+         - Total Catatan: ${notes.length}
+      3. Kalau Boss nanya soal stok atau data bisnis, gunakan data di atas.
+      4. Panggil Boss dengan sebutan "Boss".
     `;
 
-    // 3. Eksekusi Generate Content
-    const result = await model.generateContent(fullPrompt);
-    const response = await result.response;
-    const aiReply = response.text();
+    // Kita pakai model fallback biar anti-error 503
+    const models = ["gemini-1.5-flash-latest", "gemini-2.0-flash", "gemini-flash-lite-latest"];
+    let text = "";
+    let success = false;
 
-    return NextResponse.json({ success: true, reply: aiReply });
+    for (const m of models) {
+      try {
+        const model = genAI.getGenerativeModel({ model: m });
+        const result = await model.generateContent(`${systemInstruction}\n\nPertanyaan: ${prompt}`);
+        text = result.response.text();
+        success = true;
+        break;
+      } catch (e) { console.log(`Model ${m} sibuk, coba lainnya...`); }
+    }
 
+    return NextResponse.json({ success, text: success ? text : "Waduh Boss, server Google lagi penuh. Coba sedetik lagi!" });
   } catch (error) {
-    console.error("Gemini API Error:", error);
-    return NextResponse.json({ 
-      success: false, 
-      message: "Gagal memproses AI: " + (error.message || "Unknown Error") 
-    }, { status: 500 });
+    return NextResponse.json({ success: false, text: "Error server Boss!" });
   }
 }

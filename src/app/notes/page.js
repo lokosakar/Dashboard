@@ -1,75 +1,103 @@
-// src/app/notes/page.js
 'use client';
+import { useState, useEffect } from 'react';
+import { useAuthStore } from '.././store/useAuthStore';
+import { Card, Button, Input, Modal, Form, Row, Col, Typography, message, Popconfirm, Space } from 'antd';
+import { PlusOutlined, EditOutlined, DeleteOutlined, BookOutlined } from '@ant-design/icons';
 
-import { useState, useRef, useEffect } from 'react';
-import { Button, Row, Col, Typography, Spin } from 'antd';
-import { PlusOutlined } from '@ant-design/icons';
-import gsap from 'gsap';
-import NoteCard from '../components/notes/NoteCard';
-import NoteModal from '../components/notes/NoteModal';
-import { useNotes } from '../hooks/useNotes';
-
-const { Title } = Typography;
+const { Title, Paragraph } = Typography;
 
 export default function NotesPage() {
-  const { notes, isLoading, createNote } = useNotes();
-  const [isModalVisible, setIsModalVisible] = useState(false);
-  const containerRef = useRef(null);
+  const { user } = useAuthStore();
+  const [notes, setNotes] = useState([]);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [editingNote, setEditingNote] = useState(null);
+  const [form] = Form.useForm();
 
-  // Animasi GSAP pas kartu notes muncul
-  useEffect(() => {
-    if (!isLoading && notes.length > 0) {
-      gsap.fromTo(
-        '.note-card-animate', 
-        { y: 50, opacity: 0 }, 
-        { y: 0, opacity: 1, duration: 0.5, stagger: 0.1, ease: 'power3.out' }
-      );
-    }
-  }, [notes, isLoading]);
+  useEffect(() => { if (user) fetchNotes(); }, [user]);
+
+  const fetchNotes = async () => {
+    const res = await fetch(`/api/notes?userId=${user.id}`);
+    const json = await res.json();
+    setNotes(json.data);
+  };
 
   const handleSave = async (values) => {
-    await createNote(values);
-    setIsModalVisible(false);
+    const method = editingNote ? 'PUT' : 'POST';
+    const payload = editingNote ? { ...values, id: editingNote._id } : { ...values, userId: user.id };
+
+    const res = await fetch('/api/notes', {
+      method,
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+
+    if (res.ok) {
+      message.success(editingNote ? 'Catatan diupdate!' : 'Catatan ditambah!');
+      setIsModalOpen(false);
+      setEditingNote(null);
+      form.resetFields();
+      fetchNotes();
+    }
+  };
+
+  const handleDelete = async (id) => {
+    const res = await fetch(`/api/notes?id=${id}`, { method: 'DELETE' });
+    if (res.ok) { message.success('Dibuang ke tong sampah!'); fetchNotes(); }
+  };
+
+  const openEdit = (note) => {
+    setEditingNote(note);
+    form.setFieldsValue(note);
+    setIsModalOpen(true);
   };
 
   return (
-    <div ref={containerRef}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
-        <Title level={2} style={{ color: '#fff', margin: 0 }}>My Notes</Title>
-        <Button 
-          type="primary" 
-          icon={<PlusOutlined />} 
-          onClick={() => setIsModalVisible(true)}
-          style={{ background: '#722ed1', borderColor: '#722ed1' }}
-        >
-          New Note
+    <div style={{ maxWidth: 1200, margin: '0 auto' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 32 }}>
+        <Title level={2} style={{ color: '#fff', margin: 0 }}><BookOutlined /> Second Brain</Title>
+        <Button type="primary" size="large" icon={<PlusOutlined />} onClick={() => { setEditingNote(null); form.resetFields(); setIsModalOpen(true); }}>
+          Tambah Ide Baru
         </Button>
       </div>
 
-      {isLoading ? (
-        <div style={{ textAlign: 'center', padding: '50px' }}><Spin size="large" /></div>
-      ) : (
-        <Row gutter={[16, 16]}>
-          {notes.map(note => (
-            <Col xs={24} sm={12} md={8} lg={6} key={note._id} className="note-card-animate">
-              <NoteCard 
-                note={note} 
-                onEdit={() => console.log('Fitur edit menyusul', note)}
-                onDelete={() => console.log('Fitur delete menyusul', note._id)}
+      <Row gutter={[24, 24]}>
+        {notes.map(note => (
+          <Col xs={24} sm={12} lg={8} key={note._id}>
+            <Card 
+              style={{ background: '#1a1a1a', border: '1px solid #333' }}
+              actions={[
+                <EditOutlined key="edit" onClick={() => openEdit(note)} />,
+                <Popconfirm title="Hapus catatan?" onConfirm={() => handleDelete(note._id)} okText="Ya" cancelText="Batal">
+                  <DeleteOutlined key="delete" style={{ color: '#ff4d4f' }} />
+                </Popconfirm>
+              ]}
+            >
+              <Card.Meta 
+                title={<span style={{ color: '#fff' }}>{note.title}</span>} 
+                description={<Paragraph ellipsis={{ rows: 3 }} style={{ color: '#aaa' }}>{note.content}</Paragraph>}
               />
-            </Col>
-          ))}
-          {notes.length === 0 && (
-            <p style={{ color: '#888', margin: 'auto', marginTop: '50px' }}>Belum ada note. Ayo buat "Second Brain" kamu!</p>
-          )}
-        </Row>
-      )}
+            </Card>
+          </Col>
+        ))}
+      </Row>
 
-      <NoteModal 
-        visible={isModalVisible}
-        onCancel={() => setIsModalVisible(false)}
-        onSave={handleSave}
-      />
+      <Modal 
+        title={editingNote ? "Edit Catatan" : "Catatan Baru"} 
+        open={isModalOpen} 
+        onCancel={() => setIsModalOpen(false)}
+        footer={null}
+        style={{ borderRadius: 12 }}
+      >
+        <Form form={form} layout="vertical" onFinish={handleSave} style={{ marginTop: 20 }}>
+          <Form.Item name="title" label="Judul Ide" rules={[{ required: true }]}>
+            <Input placeholder="Mau catat apa Boss?" />
+          </Form.Item>
+          <Form.Item name="content" label="Isi Catatan" rules={[{ required: true }]}>
+            <Input.TextArea rows={6} placeholder="Tulis detailnya di sini..." />
+          </Form.Item>
+          <Button type="primary" htmlType="submit" block size="large">Simpan Brain</Button>
+        </Form>
+      </Modal>
     </div>
   );
 }
