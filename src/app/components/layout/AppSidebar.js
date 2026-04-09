@@ -39,7 +39,7 @@ export default function AppSidebar({ mobileMenuOpen, setMobileMenuOpen }) {
       <div style={{ padding: '32px 24px', display: 'flex', alignItems: 'center', gap: '16px' }}>
         <div style={{ width: 36, height: 36, background: 'linear-gradient(135deg, #8b5cf6, #ec4899)', borderRadius: 10, boxShadow: '0 0 20px rgba(139, 92, 246, 0.4)' }}></div>
         <div>
-          <h2 style={{ margin: 0, fontSize: '22px', fontWeight: 900, color: '#fff', letterSpacing: '-0.5px' }}>LN CORE</h2>
+          <h2 style={{ margin: 0, fontSize: '22px', fontWeight: 900, color: '#fff', letterSpacing: '-0.5px' }}>lionel </h2>
           <span style={{ color: '#8b5cf6', fontSize: '10px', fontFamily: 'monospace', letterSpacing: '2px' }}>SYSTEM.V2</span>
         </div>
       </div>

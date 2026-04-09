@@ -12,7 +12,6 @@ export default function AppHeader({ setMobileMenuOpen }) {
   const { user, logout } = useAuthStore();
   const router = useRouter();
   
-  // Ini fungsi ajaib Ant Design buat deteksi HP/Laptop
   const screens = useBreakpoint();
   const isMobile = screens.md === false; 
 
@@ -30,7 +29,7 @@ export default function AppHeader({ setMobileMenuOpen }) {
   return (
     <Header 
       style={{ 
-        padding: isMobile ? '0 16px' : '0 32px', // Kalau HP paddingnya kecilin
+        padding: isMobile ? '0 16px' : '0 32px',
         background: 'rgba(10, 10, 10, 0.7)', 
         backdropFilter: 'blur(12px)',
         borderBottom: '1px solid rgba(255,255,255,0.05)',
@@ -43,7 +42,6 @@ export default function AppHeader({ setMobileMenuOpen }) {
       }}
     >
       <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-        {/* TOMBOL MUNCUL KALAU DI HP */}
         {isMobile && (
           <Button 
             type="text" 
@@ -53,7 +51,6 @@ export default function AppHeader({ setMobileMenuOpen }) {
           />
         )}
         
-        {/* TULISAN MUNCUL KALAU DI LAPTOP */}
         {!isMobile && (
           <div style={{ color: '#aaa', fontSize: '14px' }}>
             Status: <span style={{ color: '#4ade80' }}>● All Systems Operational</span>
@@ -62,10 +59,29 @@ export default function AppHeader({ setMobileMenuOpen }) {
       </div>
 
       <Dropdown menu={{ items }} placement="bottomRight" trigger={['click']}>
-        <div style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '12px', padding: '4px 12px', borderRadius: '50px', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)' }}>
-          {/* Di HP nama emailnya disembunyiin biar gak menuh-menuhin layar */}
-          {!isMobile && <span style={{ color: '#fff', fontSize: '14px' }}>{user?.email?.split('@')[0]}</span>}
-          <Avatar size="small" style={{ backgroundColor: '#8b5cf6' }} icon={<UserOutlined />} />
+        {/* KOTAK PROFIL YANG UDAH ANTI GEPENG */}
+        <div style={{ 
+          cursor: 'pointer', 
+          display: 'flex', 
+          alignItems: 'center', 
+          gap: '10px', 
+          padding: '4px 6px 4px 16px', // Padding kiri lebih gede biar proporsional
+          borderRadius: '50px', 
+          background: '#1a1a1a', 
+          border: '1px solid #333',
+          transition: 'all 0.3s'
+        }}>
+          {!isMobile && (
+            <span style={{ color: '#fff', fontSize: '14px', fontWeight: 600 }}>
+              {user?.email?.split('@')[0]}
+            </span>
+          )}
+          {/* flexShrink: 0 adalah kunci biar buletannya gak jadi telor */}
+          <Avatar 
+            size="default" 
+            style={{ backgroundColor: '#8b5cf6', flexShrink: 0 }} 
+            icon={<UserOutlined />} 
+          />
         </div>
       </Dropdown>
     </Header>

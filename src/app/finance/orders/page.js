@@ -2,8 +2,9 @@
 import { useState, useEffect } from 'react';
 import { useAuthStore } from '../../store/useAuthStore';
 import { useRouter } from 'next/navigation';
-import { Card, Form, Select, InputNumber, Button, Table, Typography, message, Tag, Space, Divider } from 'antd';
-import { ShoppingCartOutlined, PlusOutlined, MinusCircleOutlined } from '@ant-design/icons';
+import { Card, Form, Select, InputNumber, Button, Table, Typography, message, Tag, Space, Divider, Popconfirm } from 'antd';
+import { ShoppingCartOutlined, PlusOutlined, MinusCircleOutlined, FileExcelOutlined, DeleteOutlined } from '@ant-design/icons';
+import * as XLSX from 'xlsx';
 
 const { Title } = Typography;
 
@@ -32,33 +33,67 @@ export default function OrdersPage() {
   };
 
   const fetchOrders = async () => {
+    setLoading(true);
     const res = await fetch(`/api/finance/orders?userId=${user.id}`);
     const json = await res.json();
     if (json.success) setOrders(json.data);
+    setLoading(false);
+  };
+
+  const handleExportExcel = () => {
+    if (orders.length === 0) {
+      return message.warning('Gak ada data yang bisa di-export, Boss!');
+    }
+
+    const dataToExport = orders.map((order, index) => ({
+      No: index + 1,
+      Tanggal: new Date(order.createdAt).toLocaleDateString('id-ID'),
+      Marketplace: order.marketplace,
+      'Total Omzet': order.totalRevenue,
+      'Profit Bersih': order.netProfit,
+      Status: order.isDeleted ? 'VOID' : 'Selesai'
+    }));
+
+    const worksheet = XLSX.utils.json_to_sheet(dataToExport);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, "Laporan Pembelian");
+
+    const wscols = [
+      { wch: 5 }, 
+      { wch: 15 },
+      { wch: 20 },
+      { wch: 15 },
+      { wch: 15 },
+      { wch: 10 },
+    ];
+    worksheet['!cols'] = wscols;
+
+    const fileName = `Laporan_LN_Core_${new Date().toISOString().split('T')[0]}.xlsx`;
+    XLSX.writeFile(workbook, fileName);
+    
+    message.success('Excel berhasil di-generate! Cek folder download, Boss!');
   };
 
   const onFinish = async (values) => {
-    // Validasi kalau keranjang kosong
     if (!values.items || values.items.length === 0) {
       return message.error('Tambahin minimal 1 barang dulu bro!');
     }
 
     setLoading(true);
 
-    // Kita mapping setiap barang yang ditambahin buat dicari harga jual aslinya
     const mappedItems = values.items.map(item => {
       const productDetail = products.find(p => p._id === item.productId);
       return {
         productId: item.productId,
         qty: item.qty,
-        sellPrice: productDetail.sellPrice, // Otomatis narik harga jual dari master produk
+        sellPrice: productDetail.sellPrice,
       };
     });
 
     const newOrderData = {
       userId: user.id,
       marketplace: values.marketplace,
-      adminFeePercent: 5, // Default fee 5%
+      adminFeePercent: 5,
       items: mappedItems
     };
 
@@ -70,9 +105,9 @@ export default function OrdersPage() {
     
     if (res.ok) {
       message.success('Order beruntun berhasil dibuat! Cuan ngalir!');
-      form.resetFields(['items']); // Kosongin keranjangnya aja, marketplace biarin
+      form.resetFields(['items']);
       fetchOrders();
-      fetchProducts(); // Refresh stok produk biar update
+      fetchProducts();
     } else {
       const err = await res.json();
       message.error('Gagal: ' + err.message);
@@ -80,15 +115,11 @@ export default function OrdersPage() {
     setLoading(false);
   };
 
-  // ==========================================
-  // SETUP KOLOM TABEL (DENGAN FILTER & SORTER)
-  // ==========================================
   const columns = [
     {
       title: 'Tanggal',
       dataIndex: 'createdAt',
       key: 'createdAt',
-      // Sorter buat ngurutin dari yang terbaru/terlama
       sorter: (a, b) => new Date(a.createdAt) - new Date(b.createdAt),
       render: (text) => <span style={{ color: '#aaa' }}>{new Date(text).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })}</span>
     },
@@ -96,7 +127,6 @@ export default function OrdersPage() {
       title: 'Marketplace',
       dataIndex: 'marketplace',
       key: 'marketplace',
-      // Fitur Filter by Marketplace
       filters: [
         { text: 'Shopee', value: 'Shopee' },
         { text: 'Tokopedia', value: 'Tokopedia' },
@@ -109,7 +139,6 @@ export default function OrdersPage() {
     {
       title: 'Item Terjual (Keranjang)',
       key: 'item',
-      // Render banyak barang dalam 1 baris order
       render: (_, record) => (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
           {record.items.map((item, idx) => (
@@ -132,10 +161,24 @@ export default function OrdersPage() {
       title: 'Profit Bersih',
       dataIndex: 'netProfit',
       key: 'netProfit',
-      // Sorter buat nyari "Pesanan Terbaik" (Cuan Paling Gede)
       sorter: (a, b) => a.netProfit - b.netProfit,
-      defaultSortOrder: 'descend', // Otomatis yang untungnya paling gede di atas
+      defaultSortOrder: 'descend',
       render: (val) => <span style={{ color: '#4ade80', fontWeight: 'bold' }}>Rp {val.toLocaleString('id-ID')}</span>
+    },
+    {
+      title: 'Aksi',
+      key: 'action',
+      render: (_, record) => (
+        <Popconfirm 
+          title="Void transaksi ini?" 
+          onConfirm={async () => {
+            await fetch(`/api/finance/orders?id=${record._id}`, { method: 'DELETE' });
+            fetchOrders();
+          }}
+        >
+          <Button danger type="text" icon={<DeleteOutlined />} />
+        </Popconfirm>
+      )
     }
   ];
 
@@ -144,12 +187,26 @@ export default function OrdersPage() {
   return (
     <div style={{ maxWidth: '1200px', margin: '0 auto' }}>
       
-      <Title level={2} style={{ color: '#fff', marginBottom: '24px' }}>
-        <ShoppingCartOutlined style={{ marginRight: '10px' }} /> 
-        Sales & Orders
-      </Title>
+      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 24, flexWrap: 'wrap', gap: 16 }}>
+        <Title level={2} style={{ color: '#fff', margin: 0 }}>
+          <ShoppingCartOutlined style={{ marginRight: '10px' }} /> 
+          Sales & Orders
+        </Title>
+        <Button 
+          type="default" 
+          icon={<FileExcelOutlined />} 
+          onClick={handleExportExcel}
+          style={{ 
+            background: '#107c41', 
+            color: '#fff', 
+            borderColor: '#107c41',
+            fontWeight: 'bold'
+          }}
+        >
+          Export Laporan (.xlsx)
+        </Button>
+      </div>
 
-      {/* FORM KASIR DINAMIS */}
       <Card 
         title="Kasir Pintar (Bisa Tambah Banyak Barang)" 
         bordered={false} 
@@ -160,7 +217,6 @@ export default function OrdersPage() {
           form={form} 
           layout="vertical" 
           onFinish={onFinish} 
-          // Defaultnya minimal ada 1 slot barang kosong buat diisi
           initialValues={{ marketplace: 'Shopee', items: [{ productId: undefined, qty: 1 }] }}
         >
           <Form.Item name="marketplace" label={<span style={{ color: '#aaa' }}>Platform Penjualan</span>} style={{ maxWidth: '300px' }}>
@@ -174,7 +230,6 @@ export default function OrdersPage() {
 
           <Divider style={{ borderColor: '#333', color: '#777' }}>Daftar Keranjang Belanja</Divider>
 
-          {/* INI KUNCI BUAT NAMBAHIN BARANG BANYAK (DYNAMIC FIELDS) */}
           <Form.List name="items">
             {(fields, { add, remove }) => (
               <>
@@ -226,7 +281,6 @@ export default function OrdersPage() {
         </Form>
       </Card>
 
-      {/* TABEL PINTAR */}
       <Card 
         title="Buku Penjualan" 
         bordered={false} 
@@ -237,13 +291,13 @@ export default function OrdersPage() {
           dataSource={orders} 
           columns={columns} 
           rowKey="_id" 
+          loading={loading}
           pagination={{ pageSize: 10 }} 
           locale={{ emptyText: 'Belum ada penjualan nih bro.' }}
-          scroll={{ x: 800 }} // Biar gak rusak kalau di layar kecil
+          scroll={{ x: 800 }} 
         />
       </Card>
 
     </div>
   );
 }
-
