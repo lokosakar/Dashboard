@@ -22,7 +22,6 @@ export default function ChatPage() {
     if (!user) router.push('/');
   }, [user]);
 
-  // Biar auto-scroll ke bawah kalau ada pesan baru
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
@@ -30,7 +29,7 @@ export default function ChatPage() {
   const handleSend = async () => {
     if (!prompt.trim()) return;
 
-    // Masukin pesan user ke layar
+
     const newMessages = [...messages, { role: 'user', text: prompt }];
     setMessages(newMessages);
     setPrompt('');
@@ -63,17 +62,16 @@ export default function ChatPage() {
     <div style={{ maxWidth: '900px', margin: '0 auto', height: 'calc(100vh - 120px)', display: 'flex', flexDirection: 'column' }}>
       <Title level={2} style={{ color: '#fff', marginBottom: '24px' }}>
         <RobotOutlined style={{ marginRight: '10px', color: '#8b5cf6' }} /> 
-        AI Assistant
+        Lionel Asisten
       </Title>
 
-      {/* KOTAK CHAT */}
+      
       <Card 
         bordered={false} 
         style={{ background: '#1a1a1a', flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}
         bodyStyle={{ padding: 0, display: 'flex', flexDirection: 'column', height: '100%' }}
       >
         
-        {/* AREA PESAN (SCROLLABLE) */}
         <div style={{ flex: 1, overflowY: 'auto', padding: '24px', display: 'flex', flexDirection: 'column', gap: '20px' }}>
           {messages.map((msg, index) => (
             <div key={index} style={{ display: 'flex', flexDirection: msg.role === 'user' ? 'row-reverse' : 'row', gap: '12px' }}>
@@ -91,7 +89,7 @@ export default function ChatPage() {
                 color: '#e5e7eb',
                 lineHeight: '1.6'
               }}>
-                {/* Render teks biasa (nanti lu bisa pasang react-markdown di sini kalau mau tebel/miringnya jalan) */}
+                
                 <span style={{ whiteSpace: 'pre-wrap' }}>{msg.text}</span>
               </div>
             </div>
@@ -99,7 +97,7 @@ export default function ChatPage() {
           <div ref={messagesEndRef} />
         </div>
 
-        {/* AREA INPUT (BAWAH) */}
+
         <div style={{ padding: '16px 24px', background: '#0a0a0a', borderTop: '1px solid #333' }}>
           <div style={{ display: 'flex', gap: '12px' }}>
             <Input.TextArea 
